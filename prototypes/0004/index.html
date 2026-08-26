@@ -124,6 +124,8 @@
     margin-bottom: 18px;
     font-size: 13px;
   }
+  /* author display must not defeat the hidden attribute */
+  .banner[hidden] { display: none; }
   .banner strong { font-weight: 650; }
   .banner .banner-time { font-family: var(--mono); white-space: nowrap; }
 
@@ -149,62 +151,45 @@
   }
   @media (max-width: 900px) { .summary-actions { margin-left: 0; } }
 
-  /* ---------- drift board ---------- */
-  .board-scroller { overflow-x: auto; }
-  .board { margin: 8px 16px 14px; }
-  .b-row {
-    position: relative; display: flex; align-items: stretch;
-    height: 22px;
+  /* ---------- drift digest ---------- */
+  .drift-digest {
+    padding: 0 16px 13px;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.9;
   }
-  .b-lane {
-    position: relative; flex: 1; margin-right: 84px;
+  .drift-digest .dd-label {
+    font-size: 10.5px; font-weight: 600; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--muted); margin-right: 8px;
   }
-  .b-lane::before {                       /* the target line, continued through every row */
-    content: ""; position: absolute; left: 50%; top: 0; bottom: 0;
-    border-left: 1px solid var(--ink);
-    opacity: .85;
-  }
-  .b-row:first-child .b-lane::before,
-  .b-row:last-child .b-lane::before { top: 50%; }
-  .b-row:first-child .b-lane::before { bottom: auto; height: 11px; }
-  .b-row:last-child .b-lane::before { top: auto; height: 11px; }
-  .b-chip {
-    position: absolute; top: 50%; transform: translate(-50%, -50%);
-    font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: .02em;
+  .dd-tkr {
+    border: 0; padding: 0;
+    background: transparent;
+    font-family: var(--mono); font-weight: 700; font-size: 12px;
     color: var(--ink);
-    background: var(--card);
-    border: 1px solid var(--ink);
-    border-radius: 4px;
-    padding: 1px 7px;
+    border-bottom: 1px dotted var(--faint);
   }
-  .b-chip:hover { box-shadow: 0 0 0 2px var(--card), 0 0 0 3px var(--ink); }
-  .b-chip.over { background: var(--ink); color: var(--paper); }
-  .b-pp {
-    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
-    font-family: var(--mono); font-size: 10.5px; color: var(--muted);
-  }
-  .b-scale {
-    display: flex; justify-content: space-between;
-    margin: 0 84px 6px 0;
-    font-family: var(--mono); font-size: 9.5px; color: var(--faint);
-  }
+  .dd-tkr:hover { color: var(--focus); border-bottom-color: var(--focus); }
+  .dd-part { margin-right: 14px; white-space: nowrap; }
+  .dd-num { font-family: var(--mono); }
 
   /* ---------- positions table ---------- */
   .table-scroll { overflow-x: auto; }
   table.positions {
-    width: 100%; min-width: 1060px;
+    width: 100%; min-width: 1020px;
     border-collapse: collapse;
     font-size: 13px;
   }
   .positions th {
     font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
     color: var(--muted); text-align: right;
-    padding: 8px 12px; border-bottom: 1px solid var(--hairline-strong);
+    padding: 8px 9px; border-bottom: 1px solid var(--hairline-strong);
     white-space: nowrap;
   }
-  .positions th:first-child, .positions td:first-child { text-align: left; padding-left: 16px; }
+  .positions th:first-child, .positions td:first-child { text-align: left; padding-left: 14px; }
+  .positions th:last-child, .positions td:last-child { padding-right: 14px; }
   .positions td {
-    padding: 8px 12px;
+    padding: 8px 9px;
     border-bottom: 1px solid var(--hairline);
     text-align: right;
     vertical-align: top;
@@ -230,8 +215,9 @@
   .pl-pos { color: var(--gain); }
   .pl-neg { color: var(--loss); }
   .pl-sub { display: block; font-size: 10.5px; color: var(--muted); margin-top: 1px; }
-  .drift-cell { min-width: 128px; }
+  .drift-cell { min-width: 112px; }
   .d-val { font-weight: 700; }
+  .d-at { color: var(--faint); }
   .d-bar {
     position: relative; height: 12px; margin-top: 3px;
     border-left: 0; /* centre tick drawn separately */
@@ -387,18 +373,7 @@
       </div>
     </div>
     <div class="summary-note">Unrealised profit moves with every price; realised profit never changes. The two are kept separate by design and are never summed into one figure.</div>
-  </section>
-
-  <section class="card" aria-labelledby="board-label">
-    <div class="card-label">
-      <span class="eyebrow" id="board-label">Drift board</span>
-      <span class="hint">every position placed by its drift from target weight, in percentage points · right of the line = above target · click a ticker to jump to its row</span>
-    </div>
-    <div class="board-scroller">
-      <div class="board" id="board">
-        <div class="b-scale"><span>under target ←</span><span>target weight</span><span>→ over target</span></div>
-      </div>
-    </div>
+    <div class="drift-digest" id="drift-digest"></div>
   </section>
 
   <section class="card" aria-labelledby="positions-label">
@@ -627,37 +602,54 @@ function renderSummary(state) {
     pct(unrlsd / basis * 100, 1) + "% vs cost basis " + money(basis);
 }
 
-/* ---- drift board: caterpillar plot — one row per position, horizontal
-   position is the exact drift, so the whole portfolio's deviation reads
-   top-to-bottom in a single glance. Sorted most-over first. ---- */
-function renderBoard(state) {
-  const board = $("board");
-  board.querySelectorAll(".b-row").forEach(n => n.remove());
-  const maxAbs = Math.max(...state.rows.map(r => Math.abs(r.d)), 0.01);
-  const scale = 46 / maxAbs;                       // % of half-plot per pp
+/* ---- drift digest: one line in the overview carrying the board's real job —
+   naming the outliers outright so no chart is needed to find them ---- */
+const atTarget = (r) => Math.abs(r.d) < 0.005;
 
-  const ordered = [...state.rows].sort((a, b) => b.d - a.d);
-  for (const r of ordered) {
-    const row = document.createElement("div");
-    row.className = "b-row";
-    const lane = document.createElement("div");
-    lane.className = "b-lane";
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "b-chip " + (r.d >= 0 ? "over" : "under");
-    chip.textContent = r.t;
-    chip.style.left = (50 + r.d * scale) + "%";
-    chip.setAttribute("aria-label",
-      r.name + ", drift " + pct(r.d, 2) + " percentage points from target weight. Jump to row.");
-    chip.title = r.name + " — drift " + pct(r.d, 2) + " pp";
-    chip.addEventListener("click", () => jumpToRow(r.t));
-    const pp = document.createElement("span");
-    pp.className = "b-pp";
-    pp.textContent = pct(r.d, 2) + " pp";
-    lane.appendChild(chip);
-    row.appendChild(lane);
-    row.appendChild(pp);
-    board.appendChild(row);
+function ddChip(r) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "dd-tkr";
+  b.textContent = r.t;
+  b.title = r.name + " — jump to row";
+  b.setAttribute("aria-label", r.name + ". Jump to row.");
+  b.addEventListener("click", () => jumpToRow(r.t));
+  return b;
+}
+
+function ddPart(box, tickerRow, text) {
+  const span = document.createElement("span");
+  span.className = "dd-part";
+  if (tickerRow) { span.appendChild(ddChip(tickerRow)); span.appendChild(document.createTextNode(" ")); }
+  span.appendChild(document.createTextNode(text));
+  box.appendChild(span);
+}
+
+function renderDigest(state) {
+  const box = $("drift-digest");
+  box.textContent = "";
+
+  const label = document.createElement("span");
+  label.className = "dd-label";
+  label.textContent = "Drift";
+  box.appendChild(label);
+
+  const overs = state.rows.filter(r => !atTarget(r) && r.d > 0).sort((a, b) => b.d - a.d);
+  const unders = state.rows.filter(r => !atTarget(r) && r.d < 0).sort((a, b) => a.d - b.d);
+  const ats = state.rows.filter(atTarget);
+
+  if (overs.length)
+    ddPart(box, overs[0], " " + pct(overs[0].d, 2) + " pp over target");
+  if (unders.length)
+    ddPart(box, unders[0], " " + pct(unders[0].d, 2) + " pp under");
+  for (const r of ats)
+    ddPart(box, r, " at target");
+
+  const named = (overs.length ? 1 : 0) + (unders.length ? 1 : 0) + ats.length;
+  const rest = state.rows.filter(r => r !== overs[0] && r !== unders[0] && !ats.includes(r));
+  if (rest.length) {
+    const band = Math.max(...rest.map(r => Math.abs(r.d)));
+    ddPart(box, null, (named ? "· " : "") + rest.length + " more within " + band.toFixed(2) + " pp");
   }
 }
 
@@ -683,6 +675,11 @@ function renderTable(state) {
     const plCls = r.pl >= 0 ? "pl-pos" : "pl-neg";
     const arrow = r.pl >= 0 ? "\u25B2" : "\u25BC";
 
+    const driftCell = atTarget(r)
+      ? '<td class="drift-cell"><span class="num d-val d-at">at target</span><div class="d-bar"></div></td>'
+      : '<td class="drift-cell"><span class="num d-val">' + pct(r.d, 2) +
+        ' pp</span><div class="d-bar"><i style="' + barStyle + '"></i></div></td>';
+
     const tr = document.createElement("tr");
     tr.id = "row-" + r.t;
     tr.innerHTML =
@@ -693,8 +690,7 @@ function renderTable(state) {
       '<td class="num">' + money(r.v) + "</td>" +
       '<td class="num">' + r.w.toFixed(2) + "%</td>" +
       '<td class="num">' + r.target.toFixed(2) + "%</td>" +
-      '<td class="drift-cell"><span class="num d-val">' + pct(r.d, 2) +
-        ' pp</span><div class="d-bar"><i style="' + barStyle + '"></i></div></td>' +
+      driftCell +
       '<td class="num ' + plCls + '">' + arrow + " " + money(r.pl, true) +
         '<span class="pl-sub num">' + pct(r.pl / r.basis * 100, 2) + "%</span></td>";
     tbody.appendChild(tr);
@@ -704,7 +700,8 @@ function renderTable(state) {
 function jumpToRow(ticker) {
   const row = $("row-" + ticker);
   if (!row) return;
-  row.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+  if (row.scrollIntoView)
+    row.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
   row.classList.add("row-flash");
   setTimeout(() => row.classList.remove("row-flash"), reducedMotion ? 150 : 500);
 }
@@ -712,7 +709,7 @@ function jumpToRow(ticker) {
 function render() {
   const state = computed();
   renderSummary(state);
-  renderBoard(state);
+  renderDigest(state);
   renderTable(state);
   $("offline-banner").hidden = mode !== "offline";
   $("snapshot-status").textContent = mode === "offline"
