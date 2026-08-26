@@ -17,7 +17,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 from common import make_transactions
 
 TXNS = make_transactions(500)
-CHILD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "interrupt_child.py")
+CHILD = os.path.join(os.environ.get("BENCH_OUT") or os.path.dirname(os.path.abspath(__file__)),
+                      "interrupt_child.py")
 
 CHILD_CODE = r'''
 import json, os, sqlite3, sys, time
