@@ -1,60 +1,60 @@
 # Context
 
-Słownik pojęć tej aplikacji. Wyłącznie terminy domenowe — żadnych decyzji implementacyjnych.
+Glossary for this project. Domain terms only — no implementation decisions.
 
-## Transakcja
+## Transaction
 
-Zdarzenie, które zaszło na rachunku maklerskim. Fakt, nie stan. Trzy rodzaje: **kupno**, **sprzedaż**, **split**.
+Something that happened in the brokerage account. A fact, not a state. Three kinds: **buy**, **sell**, **split**.
 
-Transakcje są jedynym źródłem prawdy o portfelu. Wszystko inne jest z nich wyliczane.
+Transactions are the only source of truth about the portfolio. Everything else is derived from them.
 
-## Pozycja
+## Position
 
-Wynik zsumowania wszystkich transakcji dla jednej spółki: liczba posiadanych sztuk i średni koszt nabycia. Pozycja nie jest zapisywana — jest liczona przy każdym otwarciu aplikacji.
+The result of folding every transaction for one company together: how many shares are held, and at what average cost. A position is never stored — it is recomputed each time the app opens.
 
-Odróżniaj od transakcji: pozycja to *stan*, transakcja to *zdarzenie*.
+Distinguish from a transaction: a position is a *state*, a transaction is an *event*.
 
 ## Split
 
-Podział akcji — zmiana liczby posiadanych sztuk bez przepływu pieniędzy. Wprowadzany ręcznie jako osobny rodzaj transakcji.
+A share split — the number of shares held changes with no money moving. Entered by hand as its own kind of transaction.
 
-Nie mylić z kupnem: split nie zmienia wartości pozycji ani łącznego kosztu nabycia, tylko liczbę sztuk i cenę jednostkową.
+Not a buy: a split changes neither the value of the position nor its total cost basis, only the share count and the per-share price.
 
-## Waga aktualna
+## Current weight
 
-Udział pozycji w wartości całego portfela, liczony po **aktualnych cenach rynkowych**. Mianownikiem jest suma wycen wszystkich pozycji — gotówka nie wchodzi do modelu.
+A position's share of total portfolio value, measured at **current market prices**. The denominator is the sum of all position valuations; cash is not part of the model.
 
-## Waga docelowa
+## Target weight
 
-Udział, jaki dana spółka *ma mieć* w portfelu. Trwała, zapisywana, definiowana osobno dla każdej spółki. Wyraża politykę portfela, nie jego stan.
+The share a company is *meant* to hold in the portfolio. Persisted, and set individually for each company. It expresses portfolio policy, not portfolio state.
 
-## Odchylenie
+## Drift
 
-Różnica między wagą aktualną a docelową. To jest liczba, po którą otwierasz aplikację.
+The gap between current weight and target weight. This is the number you open the app to see.
 
-## Kwota do zainwestowania
+## Contribution amount
 
-Pieniądze, które zamierzasz wpłacić — podawane doraźnie przy uruchamianiu rebalansu, nigdzie nie zapisywane.
+Money you intend to pay in — entered ad hoc when running a rebalance, never stored.
 
-Świadomie **nie** jest to „saldo gotówki": aplikacja nie śledzi gotówki na rachunku, bo w praktyce jej tam nie ma.
+Deliberately **not** a cash balance: the app does not track cash in the account, because in practice there isn't any.
 
-## Rebalans
+## Rebalance
 
-Wyliczenie, co kupić (i opcjonalnie co sprzedać), żeby wagi aktualne zbliżyły się do docelowych. Dwa tryby:
+Working out what to buy — and optionally what to sell — to bring current weights closer to target weights. Two modes:
 
-- **dokupowanie** — domyślny, rozdziela *kwotę do zainwestowania*, nic nie sprzedaje;
-- **pełny** — dopuszcza sprzedaż, świadomie włączany, bo sprzedaż generuje zdarzenie podatkowe.
+- **contribute** — the default. Distributes the *contribution amount* and sells nothing.
+- **full** — allows selling. Switched on deliberately, because selling is a taxable event.
 
-## Zysk niezrealizowany
+## Unrealised profit
 
-Różnica między aktualną wyceną otwartych pozycji a ich kosztem nabycia. Zmienia się z każdą ceną.
+The gap between the current valuation of open positions and their cost basis. Moves with every price.
 
-## Zysk zrealizowany
+## Realised profit
 
-Zysk lub strata domknięta sprzedażą. Nie zmienia się już nigdy.
+Profit or loss locked in by a sale. It never changes again.
 
-Nigdy nie sumowany z niezrealizowanym w jedną liczbę — powstałaby wartość, której nie da się zinterpretować.
+Never added to unrealised profit to form a single number — the result would be a figure nobody can interpret.
 
-## Snapshot ceny
+## Price snapshot
 
-Cena spółki wraz z **czasem jej pobrania**. Aplikacja nie zna pojęcia „cena" bez timestampu: bez niego nie odróżnisz spadku portfela od awarii pobierania.
+A company's price together with **the time it was fetched**. This app has no concept of a price without a timestamp: without one, you cannot tell a falling portfolio from a broken fetch.

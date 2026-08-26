@@ -15,9 +15,6 @@ The design is being worked out first, one decision at a time, using the
 ticket per open question. See [`wayfinder/map.md`](wayfinder/map.md) for where
 things stand, and [`CONTEXT.md`](CONTEXT.md) for the domain glossary.
 
-Those documents are written in Polish. Everything else — code, commits, and the
-user interface — is in English.
-
 ## Planned scope (v1)
 
 - US equities, USD only

@@ -1,79 +1,78 @@
 ---
 labels: [wayfinder:map]
-title: Lokalny tracker portfela akcji US
+title: Local portfolio tracker for US equities
 ---
 
-# Lokalny tracker portfela akcji US
+# Local portfolio tracker for US equities
 
 ## Destination
 
-Kompletny spec v1 lokalnej aplikacji portfelowej — na tyle rozstrzygnięty, że kolejne sesje mogą ją zbudować bez podejmowania decyzji projektowych.
+A complete v1 spec — settled far enough that later sessions can build the app without making design decisions of their own.
 
-Spec musi zawierać: wybrane źródło cen, model danych zapisywanych na dysku, algorytm rebalansu do wag docelowych, sposób liczenia P/L, kierunek wizualny i układ ekranów, oraz sposób uruchamiania aplikacji.
+The spec must cover: the chosen price source, the data model written to disk, the rebalancing algorithm, how P/L is computed, the visual direction and screen layout, and how the app is launched.
 
-Mapa jest zamknięta, gdy nie zostało nic do **zdecydowania** — tylko do zbudowania.
+This map is done when nothing is left to **decide** — only to build.
 
 ## Notes
 
-**Domena.** Prywatny tracker portfela dla jednej osoby, działający wyłącznie lokalnie. Prywatność jest powodem istnienia projektu — żadne dane portfela nie opuszczają dysku.
+**Domain.** A private portfolio tracker for one person, running entirely locally. Privacy is why the project exists: no portfolio data leaves the disk.
 
-**Ustalona architektura (runda 1–4 grillowania):**
+**Architecture settled during grilling (rounds 1–4):**
 
-- Python + FastAPI serwujące na `localhost`, front to HTML + CSS + minimum JS, szablony Jinja.
-- Dane trzymane lokalnie na dysku, zarządzane przez Pythona.
-- Zakres v1: **wyłącznie akcje amerykańskie w USD**. Jedna waluta, jedna klasa aktywów.
-- Model **transakcyjny**: zapisujemy transakcje (kupno/sprzedaż/split), pozycje i średnią cenę liczymy z nich.
-- **Brak gotówki** jako trwałego bytu. Tryb dokupowania przyjmuje doraźne pole „kwota do zainwestowania”.
-- **Wagi docelowe trwałe**, definiowane per spółka, wszystkie edytowalne z jednego miejsca. Apka przy starcie pokazuje odchylenie od celu.
-- **Akcje ułamkowe** dozwolone, zaokrąglanie do 4 miejsc po przecinku.
-- Rebalans w dwóch trybach: domyślnie **tylko dokupowanie**, opcjonalnie pełny (z sprzedażą). Powód: sprzedaż w USA generuje zdarzenie podatkowe.
-- **Split** jako ręcznie wprowadzane zdarzenie w modelu danych od pierwszego dnia.
-- **P/L rozbite** na zrealizowany i niezrealizowany, nigdy zsumowane w jedną liczbę.
-- **Prowizja** jako opcjonalne pole przy transakcji, domyślnie 0.
-- Ceny mają **timestamp pobrania** widoczny w UI. Brak sieci → ostatnie znane ceny z datą, nigdy pusty ekran.
+- Python + FastAPI serving on `localhost`; the front end is HTML + CSS + minimal JS, rendered with Jinja templates.
+- Data stored locally on disk, managed by Python.
+- v1 scope: **US equities in USD only**. One currency, one asset class.
+- **Transaction-based** model: transactions (buy / sell / split) are stored; positions and average cost are derived from them.
+- **No cash** as a persistent entity. Contribute mode takes an ad hoc "contribution amount" field.
+- **Target weights are persistent**, set per company, all editable from one place. On startup the app shows drift from target.
+- **Fractional shares** allowed, rounded to 4 decimal places.
+- Rebalancing has two modes: **contribute-only** by default, **full** (with selling) opt-in. Reason: selling US equities is a taxable event.
+- **Splits** are hand-entered events, present in the data model from day one.
+- **P/L is split** into realised and unrealised, never summed into one number.
+- **Commission** is an optional field on a transaction, defaulting to 0.
+- Prices carry a **fetch timestamp** shown in the UI. No network → last known prices with their date, never an empty screen.
 
-**Skille do wywołania w każdej sesji:** `grilling` i `domain-modeling`. Tickety prototypowe dodatkowo `prototype`.
+**Skills to invoke every session:** `grilling` and `domain-modeling`. Prototype tickets additionally use `prototype`.
 
-**Design.** Użytkownik dostarczył skill `frontend-design` (zapisany w `wayfinder/frontend-design.md`) — stosować, ale z ograniczeniem: **to jest narzędzie, nie strona marketingowa**. Charakter wydajemy na typografię i paletę; układ danych zostaje konwencjonalny i gęsty; zero animacji poza feedbackiem na akcję. Katalogi inspiracji (Mobbin, Refero, SaaSFrame) odrzucone — płatne i skonwergowane do jednego wyglądu.
+**Design.** The user supplied a `frontend-design` skill (stored at `wayfinder/frontend-design.md`) — apply it, but with one constraint: **this is a tool, not a marketing page**. Spend the character budget on typography and palette; keep the data layout conventional and dense; no animation beyond feedback on an action. Inspiration galleries (Mobbin, Refero, SaaSFrame) were rejected as paywalled and visually converged.
 
-**Preferencja użytkownika:** uczy się Pythona. Przy równorzędnych opcjach wybierać tę, w której więcej dzieje się po stronie Pythona, a mniej w toolingu frontendowym.
+**User preference:** the user is learning Python. Where options are otherwise equal, pick the one that puts more work in Python and less in frontend tooling.
 
-**Repozytorium i język (ustalone po kartowaniu).**
+**Repository and language.**
 
-- Repo **publiczne od pierwszego commita**: <https://github.com/itsamattbuild/INVESTMENT-PORTFOLIO>. Licencja GPL v3.
-- **Dane portfela nigdy nie leżą w drzewie repo** — fizycznie poza nim, w `~/Library/Application Support/`. To nie jest kwestia `.gitignore`, tylko lokalizacji: dane poza drzewem czynią przypadkowy commit niemożliwym, a nie tylko mało prawdopodobnym. Wiążące dla ticketu 0002.
-- **Kod, commity, README, docstringi, UI — po angielsku.** Powód: użytkownik uczy się Pythona, a całe otoczenie języka jest angielskie; mieszanie języków w identyfikatorach utrudnia naukę i debugowanie.
-- **`wayfinder/` i `CONTEXT.md` zostają po polsku.** To artefakty myślenia dla użytkownika i agentów pracujących nad projektem, nie dokumentacja dla obcych. Tłumaczenie kosztowałoby realną pracę bez zysku.
-- **Każda wartość pieniężna w modelu danych nosi pole waluty**, mimo że w v1 zawsze wynosi `USD`. Koszt: jedno pole. Zysk: druga waluta w przyszłości to nowa funkcja, a nie migracja danych. To jedyne ustępstwo na rzecz rozszerzalności — reszta (XTB, wielowalutowość) zostaje poza zakresem.
+- The repo is **public from the first commit**: <https://github.com/itsamattbuild/INVESTMENT-PORTFOLIO>. Licensed GPL v3.
+- **Portfolio data never lives inside the repo tree** — it sits outside it, under `~/Library/Application Support/`. This is a question of location, not of `.gitignore`: data outside the tree makes an accidental commit impossible rather than merely unlikely. Binding on ticket 0002.
+- **Every file in the repo is written in English** — code, commits, README, docstrings, UI copy, and these planning documents alike. One language across the whole stack.
+- **Every monetary value in the data model carries a currency field**, even though v1 is always `USD`. Cost: one field. Benefit: adding a second currency later is a feature rather than a data migration. This is the only concession made to extensibility — the rest (XTB, multi-currency) stays out of scope.
 
 ## Decisions so far
 
-<!-- pusto: kartowanie niczego nie rozstrzyga -->
+<!-- empty: charting resolves nothing -->
 
 ## Not yet specified
 
-- **Historia wartości portfela w czasie (equity curve).** Wymaga albo codziennych snapshotów przy nieregularnym otwieraniu apki, albo pobierania pełnej historii cen i odtwarzania. Wraca, gdy model danych stoi.
-- **Dywidendy.** Osobny typ zdarzenia, osobne źródło danych, 15% podatek u źródła z US. Wraca po ustaleniu modelu transakcji.
-- **Automatyczne wykrywanie splitów** z danych giełdowych zamiast ręcznego wprowadzania. Zależy od tego, co potrafi wybrane źródło cen.
-- **Obligacje skarbowe i wielowalutowość.** Wciągnęłoby do modelu PLN, kurs NBP i wycenę narastającą w czasie. Świadomie odłożone, nie odrzucone — wraca, gdy część akcyjna działa.
-- **Backup i migracja formatu danych.** Co się dzieje, gdy schemat się zmieni, a na dysku leżą stare pliki.
-- **Walidacja i obsługa błędów przy wprowadzaniu transakcji.** Zależy od modelu danych.
-- **Sposób dystrybucji.** Czy apka ma się dać odpalić bez terminala. Zależy od ticketu o cyklu życia aplikacji.
+- **Portfolio value over time (equity curve).** Needs either daily snapshots — awkward when the app is opened irregularly — or fetching full price history and replaying it. Revisit once the data model is settled.
+- **Dividends.** A separate event type, a separate data source, and 15% US withholding tax. Revisit after the transaction model is fixed.
+- **Automatic split detection** from market data instead of hand entry. Depends on what the chosen price source can provide.
+- **Treasury bonds and multi-currency.** Would pull PLN, NBP exchange rates, and accrual-based valuation into the model. Deliberately deferred, not rejected — revisit once the equity side works.
+- **Backup and data format migration.** What happens when the schema changes and old files are already on disk.
+- **Validation and error handling on transaction entry.** Depends on the data model.
+- **Distribution.** Whether the app should be launchable without a terminal. Depends on the app lifecycle ticket.
 
 ## Out of scope
 
-- **Lokalny LLM zarządzający aplikacją.** Ma sens dopiero, gdy istnieje stabilne API do portfela, po którym może chodzić. Projektowany teraz wykrzywiłby architekturę pod nieokreślone jeszcze wymagania. Wraca jako osobna mapa.
-- **Import pliku z XTB.** Użytkownik świadomie deleguje to przyszłemu lokalnemu modelowi — nie chce wysyłać wyciągu do modelu w chmurze. Wychodzi razem z LLM-em.
-- **Instrumenty inne niż akcje amerykańskie w USD.** Granica v1.
+- **A local LLM managing the app.** Only makes sense once there is a stable portfolio API for it to work against. Designing it now would warp the architecture around requirements nobody can yet state. Returns as its own map.
+- **Importing XTB statements.** The user deliberately defers this to a future local model rather than sending statements to a cloud model. Leaves with the LLM.
+- **Anything other than US equities in USD.** The boundary of v1.
 
-## Tickety
+## Tickets
 
-Otwarte tickety leżą w `wayfinder/tickets/`. Frontier = otwarte, odblokowane, nieprzypisane.
+Open tickets live in `wayfinder/tickets/`. The frontier is every ticket that is open, unblocked, and unclaimed.
 
-| # | Ticket | Typ | Status | Blokowany przez |
-|---|--------|-----|--------|-----------------|
-| 0001 | [Źródło cen dla akcji amerykańskich](tickets/0001-zrodlo-cen.md) | research | open | — |
-| 0002 | [Model danych i format zapisu na dysku](tickets/0002-model-danych.md) | grilling | open | 0001 |
-| 0003 | [Algorytm rebalansu do wag docelowych](tickets/0003-algorytm-rebalansu.md) | grilling | open | — |
-| 0004 | [Kierunek wizualny i układ głównego ekranu](tickets/0004-kierunek-wizualny.md) | prototype | open | — |
-| 0005 | [Cykl życia aplikacji i uruchamianie](tickets/0005-cykl-zycia.md) | grilling | open | 0001 |
+| # | Ticket | Type | Status | Blocked by |
+|---|--------|------|--------|------------|
+| 0001 | [Price source for US equities](tickets/0001-price-source.md) | research | open | — |
+| 0002 | [Data model and on-disk format](tickets/0002-data-model.md) | grilling | open | 0001 |
+| 0003 | [Rebalancing algorithm](tickets/0003-rebalancing-algorithm.md) | grilling | open | — |
+| 0004 | [Visual direction and main screen layout](tickets/0004-visual-direction.md) | prototype | open | — |
+| 0005 | [Application lifecycle and launching](tickets/0005-app-lifecycle.md) | grilling | open | 0001 |
