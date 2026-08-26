@@ -1,12 +1,13 @@
 # Data model decision pack
 
 Prepared for [issue #2](https://github.com/itsamattbuild/INVESTMENT-PORTFOLIO/issues/2).
-Nothing here decides anything — #2 is a grilling ticket and stays open. What this
-document does is replace three of #2's seven questions ("argue it out") with
-measured facts ("pick one of these two rows"), and attach recommendations to the
-remaining four. One exception since the first publication: question 7's cost
-method is decided in §C2 — decided provisionally, on the statutory reading,
-with a dated verification step that closes it.
+Sections A–C were prepared to *inform* #2, not to settle it: they replace three
+of its seven questions ("argue it out") with measured facts ("pick one of these
+two rows") and attach recommendations to the remaining four. The owner has since
+answered all seven; those answers are recorded in **Decisions** at the end of
+this document, and they, not the recommendations, are what the implementation
+follows. Question 7's cost method was decided earlier and separately in §C2,
+provisionally on the statutory reading, with a dated verification step.
 
 **Test conditions.** Python 3.14.4, SQLite 3.46.1 (via `sqlite3` module), Linux
 container, 2026-08-26. The interrupted-write tests force `fsync` at every step
@@ -319,3 +320,87 @@ February 2027. **Recommendation:** accept.
 for run order. Run order: `bench_size_time.py`, `bench_gitdiff.py`,
 `bench_interrupt.py`, `bench_decimal.py`, `bench_decimal_mech.py`,
 `bench_fifo.py`. All numbers above reproduce exactly.*
+
+---
+
+## Decisions — settled by the repository owner, 2026-08-26
+
+The seven questions above are answered. Recorded here in the owner's words,
+with the reasoning that produced each answer, so the next reader does not have
+to reconstruct it.
+
+**Q1. Storage format — JSON, one object per line, temp+`os.replace`, load-time
+integrity check.** Taken explicitly as provisional: "JSON for now, it can be
+changed later." That escape hatch is real and cheap for the same structural
+reason FIFO is reversible in §C2 — the file holds *transactions, not positions*,
+so swapping the store swaps one load/save module and recomputes everything from
+the same events. No state migration exists to get wrong.
+
+The measurements did not decide this and are not claimed to. §A3's dangerous row
+— a `SIGKILL` mid-write destroying the entire ledger — is a property of the
+naive in-place write, not of JSON: temp file, `fsync`, `os.replace` eliminates
+it at a measured cost of 0.03 ms per write. With durability neutralised and both
+formats instant at this scale, the deciders are readability of the file, a
+meaningful `git diff` in a public repository, and no new concepts to learn.
+
+**Q2. Transaction schema — accepted as proposed, plus a currency-rate field.**
+The proposed schema recorded amounts in USD only. Realised profit in USD is not
+the number that goes on a Polish tax return: income and cost are each converted
+at the NBP mid rate published on the **last business day preceding** the
+transaction, separately for the purchase and for the sale. Because the owner
+already sold during 2026, this is a live figure rather than a future concern.
+Every buy and sell therefore stores the rate that applied to *it*, alongside the
+date that rate came from.
+
+The stored rate is a historical record, not a cache: once written it is never
+refreshed, because the rate that applied to a 2026 sale does not change.
+
+**Q2a. Rate source — fetched automatically from the NBP public API** at the time
+the transaction is recorded, then frozen into the transaction. Follows the same
+principle issue #1 settled for prices: fetch from the authoritative source rather
+than through a convenience wrapper. Endpoint behaviour needs verifying before
+implementation — in particular what the API returns for weekends, Polish public
+holidays and dates with no published table, since "the preceding business day"
+is exactly the case where a naive date-minus-one is wrong. Raised as its own
+ticket; treat every detail of the call as unverified until it closes.
+
+**Q2b. Commission — zero at this broker,** per the owner. The field stays in the
+schema, optional, defaulting to `"0.00"`, and the transaction form does not
+surface it. The zero is conditional, not absolute: the broker's equity
+commission is waived below a monthly turnover threshold (the owner reports
+EUR 100,000) and the owner trades well under it. Should turnover ever cross the
+threshold the field becomes live, and it belongs in the FIFO arithmetic rather
+than the presentation layer — commission on a purchase raises the lot's cost
+basis, commission on a sale reduces the proceeds.
+
+Currency conversion is a separate charge from commission and is not covered by
+this field. It reduces the złoty actually received without appearing anywhere in
+the USD figures. Out of scope for the schema until someone decides whether the
+app should model it.
+
+**Q3. Split representation — accepted.** Two integers, never a float ratio.
+
+**Q4. Target weights — accepted.** Separate entity from transactions; a company
+sold down to zero keeps its target until the user deletes it explicitly.
+
+**Q5. Price cache shape — accepted.** Latest snapshot per ticker, two
+timestamps per issue #1, schema left forward-compatible with appended history.
+
+**Q6. Data file layout — accepted.** One file under
+`~/Library/Application Support/InvestmentPortfolio/`, overridable by
+`INVESTMENT_PORTFOLIO_DATA_DIR` for tests, never inside the repository tree.
+
+**Q7. Position derivation — accepted, FIFO, extended to two currencies.** Fold
+ordered by `(date, id)`; each sale consumes open lots earliest-first; splits
+adjust share count and basis-per-share while preserving lot order. Realised
+profit is produced in both currencies from the same lot walk: in USD from the
+traded amounts, and in PLN by converting each consumed lot at the rate stored on
+*its own* purchase and the proceeds at the rate stored on the sale. The two
+figures are not related by any single exchange rate and neither is derivable
+from the other.
+
+**Not tax advice.** The statutory reading in §C1 and the conversion rule above
+are better documented than what they replaced, and still amount to a layman's
+reading of the act. The dated closing step stands: compare the app's figures
+against XTB's PIT-8C for tax year 2026 when it arrives, by the end of February
+2027.
