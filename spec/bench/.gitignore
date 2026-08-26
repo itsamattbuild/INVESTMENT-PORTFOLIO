@@ -1,0 +1,7 @@
+out/
+out2/
+__pycache__/
+nohup.out
+server.log
+.venv/
+price_cache.json
