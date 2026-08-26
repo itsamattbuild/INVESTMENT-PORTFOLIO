@@ -1,5 +1,16 @@
+# Portfolio data never belongs in this repository.
+# The application stores it outside the repo tree entirely
+# (~/Library/Application Support/), so this is a second line of defence only.
+data/
+*.db
+*.sqlite3
+
 __pycache__/
 *.pyc
 .venv/
+venv/
+.env
+
 .DS_Store
-data/
+.idea/
+.vscode/

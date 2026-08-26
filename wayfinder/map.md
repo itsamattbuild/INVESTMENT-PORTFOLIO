@@ -38,6 +38,14 @@ Mapa jest zamknięta, gdy nie zostało nic do **zdecydowania** — tylko do zbud
 
 **Preferencja użytkownika:** uczy się Pythona. Przy równorzędnych opcjach wybierać tę, w której więcej dzieje się po stronie Pythona, a mniej w toolingu frontendowym.
 
+**Repozytorium i język (ustalone po kartowaniu).**
+
+- Repo **publiczne od pierwszego commita**: <https://github.com/itsamattbuild/INVESTMENT-PORTFOLIO>. Licencja GPL v3.
+- **Dane portfela nigdy nie leżą w drzewie repo** — fizycznie poza nim, w `~/Library/Application Support/`. To nie jest kwestia `.gitignore`, tylko lokalizacji: dane poza drzewem czynią przypadkowy commit niemożliwym, a nie tylko mało prawdopodobnym. Wiążące dla ticketu 0002.
+- **Kod, commity, README, docstringi, UI — po angielsku.** Powód: użytkownik uczy się Pythona, a całe otoczenie języka jest angielskie; mieszanie języków w identyfikatorach utrudnia naukę i debugowanie.
+- **`wayfinder/` i `CONTEXT.md` zostają po polsku.** To artefakty myślenia dla użytkownika i agentów pracujących nad projektem, nie dokumentacja dla obcych. Tłumaczenie kosztowałoby realną pracę bez zysku.
+- **Każda wartość pieniężna w modelu danych nosi pole waluty**, mimo że w v1 zawsze wynosi `USD`. Koszt: jedno pole. Zysk: druga waluta w przyszłości to nowa funkcja, a nie migracja danych. To jedyne ustępstwo na rzecz rozszerzalności — reszta (XTB, wielowalutowość) zostaje poza zakresem.
+
 ## Decisions so far
 
 <!-- pusto: kartowanie niczego nie rozstrzyga -->

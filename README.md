@@ -1,1 +1,39 @@
-# INVESTMENT-PORTFOLIO
+# Investment Portfolio
+
+A local-first portfolio tracker for US equities. Runs entirely on your own
+machine: fetches current prices on startup, computes position weights, and
+tells you what to buy or sell to reach your target allocation.
+
+Privacy is the reason this exists. Your holdings never leave your disk.
+
+## Status
+
+**Planning.** No application code yet.
+
+The design is being worked out first, one decision at a time, using the
+[wayfinder](wayfinder/) method: a map of what still needs deciding, plus one
+ticket per open question. See [`wayfinder/map.md`](wayfinder/map.md) for where
+things stand, and [`CONTEXT.md`](CONTEXT.md) for the domain glossary.
+
+Those documents are written in Polish. Everything else — code, commits, and the
+user interface — is in English.
+
+## Planned scope (v1)
+
+- US equities, USD only
+- Transactions as the source of truth; positions derived from them
+- Target weight per company, persisted
+- Rebalancing in two modes: contribute-only (default) and full (allows selling)
+- Realised and unrealised P/L, reported separately
+- Prices fetched at startup, with the fetch timestamp always visible
+
+Deliberately out of scope for now: multi-currency, broker imports, and any LLM
+integration. See the map for the reasoning.
+
+## Stack
+
+Python + FastAPI serving HTML on localhost. No frontend build step.
+
+## Licence
+
+GPL v3. See [LICENSE](LICENSE).

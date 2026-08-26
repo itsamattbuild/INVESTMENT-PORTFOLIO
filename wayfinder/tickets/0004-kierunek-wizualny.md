@@ -31,6 +31,7 @@ Ustalenia z grillowania, przyjęte jako dane:
 - Skill `frontend-design` dostarczony przez użytkownika leży w `wayfinder/frontend-design.md`.
 - Katalogi inspiracji odrzucone: płatne i skonwergowane do jednego wyglądu. Kierunek wypracowujemy, nie kopiujemy.
 - Wolne źródła podglądu, jeśli potrzebne: strony marketingowe Snowball Analytics, Getquin, Sharesight, Kubera, Portseido.
+- **Wszystkie teksty w interfejsie po angielsku.** Jeden język w całym stosie — etykieta na ekranie ma się nazywać tak samo jak pole w kodzie.
 
 ## Wynik
 
