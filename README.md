@@ -12,8 +12,10 @@ Privacy is the reason this exists. Your holdings never leave your disk.
 
 The design is being worked out first, one decision at a time, using the
 [wayfinder](wayfinder/) method: a map of what still needs deciding, plus one
-ticket per open question. See [`wayfinder/map.md`](wayfinder/map.md) for where
-things stand, and [`CONTEXT.md`](CONTEXT.md) for the domain glossary.
+ticket per open question. The map lives in
+[issue #6](https://github.com/itsamattbuild/INVESTMENT-PORTFOLIO/issues/6); its
+open child issues are what is left to decide. [`CONTEXT.md`](CONTEXT.md) is the
+domain glossary.
 
 ## Planned scope (v1)
 
