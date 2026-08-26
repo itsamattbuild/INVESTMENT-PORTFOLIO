@@ -1,11 +1,17 @@
 """Two processes writing the same data file -- what actually happens."""
 
+import atexit
 import json
 import os
+import shutil
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import time
+
+WORK = tempfile.mkdtemp(prefix="lifecycle-writes-")
+atexit.register(shutil.rmtree, WORK, ignore_errors=True)
 
 WRITER = r'''
 import json, sqlite3, sys, time
@@ -30,12 +36,12 @@ elif mode == "json":
         time.sleep(0.01)
 '''
 
-open("/tmp/opencode/life/writer.py", "w").write(WRITER)
+open(os.path.join(WORK, "writer.py"), "w").write(WRITER)
 
 print("=== JSON: two processes, interleaved read-modify-write ===")
-p = "/tmp/opencode/life/clobber.json"
+p = os.path.join(WORK, "clobber.json")
 json.dump({"log": []}, open(p, "w"))
-procs = [subprocess.Popen([sys.executable, "/tmp/opencode/life/writer.py",
+procs = [subprocess.Popen([sys.executable, os.path.join(WORK, "writer.py"),
                            "json", p, tag]) for tag in ("proc-A", "proc-B")]
 for pr in procs:
     pr.wait()
@@ -48,7 +54,7 @@ print("lost entries:", 40 - len(final), "-- last writer wins, earlier writers si
 
 print()
 print("=== SQLite: two processes, row-at-a-time, WAL mode ===")
-p = "/tmp/opencode/life/locked.db"
+p = os.path.join(WORK, "locked.db")
 if os.path.exists(p):
     os.remove(p)
 con = sqlite3.connect(p)
@@ -56,7 +62,7 @@ con.execute("PRAGMA journal_mode=WAL")
 con.execute("CREATE TABLE events (k TEXT, tag TEXT)")
 con.commit()
 con.close()
-procs = [subprocess.Popen([sys.executable, "/tmp/opencode/life/writer.py",
+procs = [subprocess.Popen([sys.executable, os.path.join(WORK, "writer.py"),
                            "sqlite", p, tag], stderr=subprocess.PIPE, text=True)
          for tag in ("proc-A", "proc-B")]
 errs = []
@@ -75,15 +81,15 @@ print("errors:", errs or "none -- WAL + busy_timeout serialises the writers")
 print()
 print("=== same test without busy_timeout (default 5s? no -- default is 0 wait via timeout param) ===")
 W2 = WRITER.replace('timeout=3.0', 'timeout=0.1')
-open("/tmp/opencode/life/writer2.py", "w").write(W2)
-p = "/tmp/opencode/life/locked2.db"
+open(os.path.join(WORK, "writer2.py"), "w").write(W2)
+p = os.path.join(WORK, "locked2.db")
 if os.path.exists(p):
     os.remove(p)
 con = sqlite3.connect(p)
 con.execute("PRAGMA journal_mode=WAL")
 con.execute("CREATE TABLE events (k TEXT, tag TEXT)")
 con.commit(); con.close()
-procs = [subprocess.Popen([sys.executable, "/tmp/opencode/life/writer2.py",
+procs = [subprocess.Popen([sys.executable, os.path.join(WORK, "writer2.py"),
                            "sqlite", p, tag], stderr=subprocess.PIPE, text=True)
          for tag in ("proc-A", "proc-B")]
 errs = []

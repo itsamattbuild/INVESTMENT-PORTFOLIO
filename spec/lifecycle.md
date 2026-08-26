@@ -16,15 +16,25 @@ concurrent data-file writes. The dead-network fetch legs use `sleep(TIMEOUT)`
 with #1's measured constants inside #1's chain structure — what that changes
 for the user's screen is then measured end-to-end, not simulated.
 
+**Platform of the numbers.** Every local figure in this document was
+re-measured on 2026-08-26 on **Linux (aarch64 container), Python 3.14.4**,
+after the bench scripts were made portable (`tempfile` instead of hardcoded
+sandbox paths). No macOS hardware has run any of this yet: numbers marked
+`[macOS]` remain reasoned, not executed. The dead-network probe in
+`bench/fetch_layer.py` reports honestly which case fired on each leg — behind
+this sandbox's transparent proxy both legs are answered early (~30 ms), so its
+leg times here measure proxy refusals, not timeouts; the timeout arithmetic
+lives in §2's sleep-based legs as before.
+
 ## 1. Cold start, decomposed
 
-| Component | Measured tonight | Notes |
+| Component | Measured | Notes |
 |---|---|---|
-| Python interpreter boot | 5 ms | negligible |
-| import `curl_cffi.requests` | 51 ms | the mandatory compiled dep; fine |
-| import `fastapi` | 107 ms | largest import cost |
-| import `uvicorn` | 52 ms | |
-| uvicorn process start → serving requests | **129 ms** | measured on loopback |
+| Python interpreter boot | 6.6 ms | negligible |
+| import `curl_cffi.requests` | 47 ms | the mandatory compiled dep; fine |
+| import `fastapi` | 96 ms | largest import cost |
+| import `uvicorn` | 41 ms | |
+| uvicorn process start → serving requests | **149 ms** median (147–272 over 7 runs) | measured on loopback |
 | TLS session, first request (real host) | **611 ms** first call, then 236–304 ms steady | stand-in host; #1 measured **1–4 s** for Yahoo's first call (cookie/session setup) and ~30 ms/ticker steady state |
 
 Reading: everything except the first fetch call together costs roughly a third
@@ -43,7 +53,7 @@ Page served by a real HTTP client against real servers:
 | Startup design | Healthy fetch (~0.35 s) | Dead network (both sources time out) |
 |---|---|---|
 | Blocking (page waits for fetch) | **0.35 s** to page | **10.00 s** of blank screen (two 5 s timeouts compound — exactly #1's measurement) |
-| Non-blocking (render last-known immediately, background refresh) | **0.003 s** | **0.004 s** |
+| Non-blocking (render last-known immediately, background refresh) | **0.0004 s** | **0.0003 s** |
 
 The settled no-network policy ("last known prices, never an empty screen") is
 only literally true under non-blocking startup. A blocking design shows an
@@ -56,22 +66,30 @@ Cost: one background thread — acceptable in plain Python.
 
 ## 3. Launching twice
 
-Measured with two real instances:
+Measured with two real instances (reproduced by `bench/bench_port_collision.py`):
 
-- Second instance fails fast and loudly: `[Errno 98] address already in use`
-  while binding `127.0.0.1:<port>`; exit code non-zero. First instance keeps
-  serving (HTTP 200 throughout).
-- So the *port* collision is safe by default. The dangerous half is the second
-  instance's *startup work* (fetching prices, writing cache) happening before
-  the bind failure — ordering matters: bind first, do work after.
+- Second instance fails fast and loudly: bind on `127.0.0.1:<port>` raises
+  `OSError` **errno 98** (`EADDRINUSE`) and it exits rc=3 after ~0.15 s.
+  First instance keeps serving (HTTP 200 throughout).
+- The number is platform-specific — this machine (Linux) reports **98**; macOS,
+  using BSD errno numbering, reports the same condition as **48**. Any code
+  detecting this condition must compare against `errno.EADDRINUSE`, never
+  against a numeric literal or a message substring. Whether the second
+  instance's *failure mode* is also identical on macOS — where `SO_REUSEADDR`
+  semantics differ from Linux — belongs on the hardware-verification list with
+  the other `[macOS]` items below.
+- So the *port* collision is safe by default on Linux. The dangerous half is
+  the second instance's *startup work* (fetching prices, writing cache)
+  happening before the bind failure — ordering matters: bind first, do work
+  after.
 
 ### Two processes writing the same data file — tested, not reasoned
 
 | Store | Result |
 |---|---|
-| JSON, interleaved read-modify-write | **Silent data loss**: A wrote 20 log entries, B wrote 20; final file held 37 — 3 entries erased by last-writer-wins, no error anywhere |
-| SQLite WAL, row-at-a-time writes, `busy_timeout=3000` | **Zero loss**, zero errors, `integrity_check=ok`; writers serialise cleanly |
-| SQLite, second writer while a write transaction is held | Fails honestly after its timeout: `sqlite3.OperationalError: database is locked` |
+| JSON, interleaved read-modify-write | **Silent data loss, every run**: A wrote 20 log entries, B wrote 20; the surviving count moved between runs — 37 of 40 in the original sandbox, **1–33 of 40 across ten re-runs here**. No error anywhere; the exact loss is scheduler luck, which is worse than any stable number would be |
+| SQLite WAL, row-at-a-time writes, `busy_timeout=3000` | **Zero loss** (reproduced exactly: 20/20 + 20/20 rows), zero errors, `integrity_check=ok`; writers serialise cleanly |
+| SQLite, second writer while a write transaction is held | Fails honestly after its timeout: `sqlite3.OperationalError: database is locked`. Observed in the original runs; today's impatient-writer re-runs completed without overlapping writes, so no error fired — absence of contention, not absence of the error path |
 
 **Recommendation:** whatever storage #2 picks, add a single-instance guard to
 the launcher (pidfile or pre-bind check) — cheap insurance. If #2 chooses
@@ -128,7 +146,8 @@ ticker (e.g. its `BRK.B` mapping gaps) precisely when Yahoo degraded mid-loop.
 that outscopes v1. The launcher already makes re-launching idempotent.
 
 **Q2. Blocking vs non-blocking startup.** Non-blocking, per §2. The page
-renders from cache in ~4 ms regardless of network; refresh lands in the
+renders from cache in under half a millisecond regardless of network; refresh
+lands in the
 background.
 
 **Q3. Refresh mid-session.** Add a manual "fetch prices now" button hitting
@@ -148,5 +167,6 @@ plus the fetch layer's per-ticker outcomes; the launcher's error paths point
 at it. No syslog/journald involvement.
 
 *Scripts: `bench/app_variants.py` (blocking/non-blocking servers),
-`bench/concurrent_writes.py`, `bench/launcher.command`. Live-quote re-measure
-during a trading session remains ticket #8's job.*
+`bench/concurrent_writes.py`, `bench/fetch_layer.py`,
+`bench/bench_port_collision.py`, `bench/launcher.command`. Live-quote
+re-measure during a trading session remains ticket #8's job.*

@@ -1,10 +1,12 @@
 """Fetch layer for lifecycle tests -- copied from research/price-source.md on
 main (verified by issue #1), trimmed to what the lifecycle measurements need.
 
-Tonight's environment: the sandbox network allowlist blocks Yahoo and CNBC
-(403 at the network layer), so live-quote paths are exercised against a stub.
-The failure paths (timeouts, DNS errors, connection refusals) are real --
-they need no reachable endpoint, only an unreachable one.
+Environment-dependent paths, stated plainly: with live=False the dead-network
+legs probe an unroutable address. Where that address truly blackholes, the legs
+end in real timeouts; behind a transparent TCP proxy (as in both sandboxes used
+so far) the probe is answered instantly -- HTTP 403 in ~10 ms -- and the leg
+times reported are those of the proxy refusal, not of a timeout. The script
+says which case fired rather than pretending either way.
 """
 
 from __future__ import annotations
@@ -90,27 +92,42 @@ def fetch_prices(tickers, live=False):
 
 
 def _dead_network_chain(tickers):
-    """Real timeouts against an unroutable address, in #1's chain shape."""
+    """Probe an unroutable address in #1's chain shape.
+
+    Reports per-leg elapsed time and how the leg actually ended: a real
+    timeout, an early answer (transparent proxy), or another immediate error.
+    Returns (snapshots, failures, t_yahoo, t_cnbc, outcomes) where outcomes
+    names the yahoo and cnbc leg endings.
+    """
     import time
-    t0 = time.perf_counter()
-    yahoo_failures = {}
-    for ticker in tickers:
+
+    def probe(request_call):
+        t0 = time.perf_counter()
         try:
-            curl_requests.get("https://10.255.255.1/", timeout=TIMEOUT_SECONDS)
-            raise RuntimeError("unexpectedly routable")
-        except curl_requests.exceptions.RequestException:
-            yahoo_failures[ticker] = "timeout"
-    t_yahoo = time.perf_counter() - t0
-    t0 = time.perf_counter()
-    try:
-        import requests
-        requests.get("https://10.255.255.1/", timeout=TIMEOUT_SECONDS)
-    except requests.exceptions.RequestException:
-        pass
-    t_cnbc = time.perf_counter() - t0
-    return {}, {t: "all sources unreachable" for t in tickers}, t_yahoo, t_cnbc
+            request_call()
+            return time.perf_counter() - t0, "answered-early"
+        except Exception as error:
+            kind = type(error).__name__
+            slow = time.perf_counter() - t0 >= TIMEOUT_SECONDS * 0.9
+            return time.perf_counter() - t0, f"timeout ({kind})" if slow else f"error: {kind}"
+
+    def yahoo_leg():
+        curl_requests.get("https://10.255.255.1/", timeout=TIMEOUT_SECONDS)
+
+    t_yahoo, y_end = probe(yahoo_leg)
+    t_cnbc, c_end = probe(
+        lambda: _plain_requests("https://10.255.255.1/", timeout=TIMEOUT_SECONDS))
+    outcomes = {"yahoo": y_end, "cnbc": c_end}
+    return ({}, {t: "all sources unreachable" for t in tickers},
+            t_yahoo, t_cnbc, outcomes)
+
+
+def _plain_requests(*args, **kwargs):
+    import requests
+    return requests.get(*args, **kwargs)
 
 
 if __name__ == "__main__":
-    snaps, fails, ty, tc = fetch_prices(["AAPL", "MSFT"])
-    print(f"yahoo leg: {ty:.2f}s, cnbc leg: {tc:.2f}s, total {ty+tc:.2f}s")
+    snaps, fails, ty, tc, legs = fetch_prices(["AAPL", "MSFT"])
+    print(f"yahoo leg: {ty:.2f}s ({legs['yahoo']}), "
+          f"cnbc leg: {tc:.2f}s ({legs['cnbc']}), total {ty+tc:.2f}s")

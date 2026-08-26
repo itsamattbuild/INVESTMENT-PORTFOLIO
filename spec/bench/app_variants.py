@@ -7,7 +7,11 @@ duration instead -- the arithmetic (5s + 5s) is #1's measurement; what is
 measured for real here is what each design does to the user's screen.
 """
 
+import atexit
 import json
+import os
+import shutil
+import tempfile
 import threading
 import time
 
@@ -18,7 +22,9 @@ import uvicorn
 TIMEOUT = 5.0
 TICKERS = ["AAPL", "MSFT", "NVDA", "GOOGL", "AMZN",
            "META", "TSLA", "BRK-B", "JPM", "V", "JNJ", "WMT"]
-CACHE = "/tmp/opencode/life/price_cache.json"
+_CACHE_DIR = tempfile.mkdtemp(prefix="lifecycle-bench-")
+atexit.register(shutil.rmtree, _CACHE_DIR, ignore_errors=True)
+CACHE = os.path.join(_CACHE_DIR, "price_cache.json")
 
 # last known prices, as the no-network policy requires them on disk
 json.dump({t: {"price": 100.0 + i, "quoted_at": "2026-08-25T20:00:01Z"}
@@ -72,7 +78,14 @@ def make_app(kind: str, network: str) -> FastAPI:
 
 
 if __name__ == "__main__":
+    import signal
     import sys
+
+    def _clean_exit(signum, frame):
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGTERM, _clean_exit)
+    signal.signal(signal.SIGINT, _clean_exit)
     kind, network, port = sys.argv[1], sys.argv[2], int(sys.argv[3])
     uvicorn.run(make_app(kind, network), host="127.0.0.1", port=port,
                 log_level="warning")
