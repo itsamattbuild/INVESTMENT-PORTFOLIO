@@ -1,36 +1,37 @@
-# Wayfinder — local tracker convention
+# Wayfinder
 
-No issue tracker is configured, so the map and its tickets live as markdown files in this directory.
+This project is planned with the wayfinder method: a **map** that indexes what
+still needs deciding, and one **ticket** per open question, worked one at a time
+until the way to the destination is clear.
 
-## Layout
+The tracker is this repository's GitHub issues.
 
-```
-wayfinder/
-├── map.md              ← the map (labels: wayfinder:map). The single canonical artifact.
-├── frontend-design.md  ← user-supplied skill, used by ticket 0004
-└── tickets/
-    └── NNNN-slug.md    ← tickets, children of the map
-```
+- **The map** — [Map: local portfolio tracker for US equities](https://github.com/itsamattbuild/INVESTMENT-PORTFOLIO/issues/6),
+  labelled `wayfinder:map`. Read it first. It carries the destination, the
+  binding constraints, the decisions made so far, and the fog that is not yet
+  sharp enough to ticket.
+- **Tickets** — child issues of the map, labelled by type: `wayfinder:research`,
+  `wayfinder:prototype`, `wayfinder:grilling`, `wayfinder:task`.
+- **The frontier** — open child issues that are unblocked and unclaimed. Blocking
+  uses GitHub's native issue dependencies, so the frontier is visible in the
+  issue list without opening anything.
 
-## Ticket frontmatter
+Tickets briefly lived as markdown files in this directory. They were moved to
+issues once a second agent joined the work; the issues are now the only
+canonical copy.
 
-```yaml
-id: 0003
-title: ...
-labels: [wayfinder:research | wayfinder:prototype | wayfinder:grilling | wayfinder:task]
-parent: ../map.md
-status: open | closed
-assignee: null | <who is working on it>
-blocked_by: [0001, 0002]
-```
+## Working a ticket
 
-## Operations
+1. Read the map. Do not read every ticket — the map is the low-resolution view.
+2. Take a frontier ticket and **claim it before doing any work** by adding an
+   `agent:*` label.
+3. Resolve it, invoking the skills named in the map's Notes.
+4. Post the answer as a comment, close the issue, and add a line to
+   `Decisions so far` on the map.
 
-- **Frontier** — tickets with `status: open`, an empty `assignee`, and every `blocked_by` closed.
-- **Claim** — write yourself into `assignee` **before** starting work. That is what separates a taken ticket from a free one.
-- **Resolve** — append a `## Resolution` section to the ticket, set `status: closed`, and add a line to `## Decisions so far` in `map.md` linking back to the ticket.
-- **Rule out of scope** — close the ticket and add a line to `## Out of scope` in the map. It does not go in `Decisions so far`: that section records the route actually walked, and a scope boundary is not a step along it.
+One session, one ticket. Research tickets may run in parallel.
 
-## Rule
+## What stays here
 
-One session, one ticket. Exception: research tickets (`wayfinder:research`) may run in parallel.
+- `frontend-design.md` — a design skill supplied by the repository owner,
+  referenced by the visual direction ticket.
