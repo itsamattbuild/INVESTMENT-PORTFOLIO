@@ -202,3 +202,91 @@ iterative removal as in §3, unspent amount reported to the cent.
 
 *Scripts: `bench/rebalance.py` (main comparison), `bench/edge_cases.py`,
 `bench/edge_cases_threshold.py`. Deterministic; no network; no dependencies.*
+
+---
+
+## Decisions — settled by the repository owner, 2026-08-26
+
+Two of the seven answers are not on the menu the questions offered, and one
+overrides the recommendation. All three are recorded as given, with the owner's
+reasoning.
+
+**Q1. Algorithm — water-filling.** Accepted as recommended. The concern that
+raised itself during the decision was whether water-filling suits an owner who
+buys two or three names at a time, or puts a whole contribution into one
+company. Measured rather than assumed, on `bench/rebalance.py`'s fixed
+portfolio:
+
+| Portfolio | Contribution | As % of portfolio | Water-filling plan |
+|---|---|---|---|
+| $94,595 | $275 | 0.3% | **1 trade** — BRK-B $275 |
+| $94,595 | $550 | 0.6% | **2** — BRK-B $479, AMZN $71 |
+| $94,595 | $1,400 | 1.5% | **3** — BRK-B $850, AMZN $400, GOOGL $150 |
+| $9,460 | $275 | 2.9% | **3** — $134 / $83 / $58 |
+| $9,460 | $1,400 | 14.8% | **5** — $420 down to $137 |
+| $4,730 | $1,400 | 29.6% | **7** — $360 down to **$9** |
+
+**Trade count is governed by the contribution as a fraction of the portfolio,
+not by its dollar size.** Water-filling collapses to one or two trades on its
+own whenever the contribution is small relative to the whole, so it does not
+fight the owner's actual buying pattern. It fragments only when a contribution
+is a large share of a small portfolio — which is where the minimum-trade
+threshold has to do its work.
+
+**Q2. Presentation — full breakdown.** Per line: ticker, amount, shares to 4 dp,
+weight before → after, resulting drift. Below: sum of absolute drifts before →
+after, and the unreachable-targets message with the months-to-dilute estimate.
+
+**Q3. Full mode — a tolerance band, not exact closure.** Sell only when a
+position exceeds its target by more than the band, and then only down to the
+edge of the band rather than to zero drift. 2 pp proposed as the starting value.
+Reason: a sale is irreversible and taxable, and closing to zero drift makes the
+app propose realising a gain in order to correct a fraction of a percentage
+point. The band's exact value is a knob, not a principle.
+
+**Q4. Nowhere to put the money — distribute pro rata by target weights.**
+Overrides the recommendation, which was to report the contribution as
+undeployed. The owner's reason is that idle money is a worse outcome than an
+imperfect placement. Recorded as the owner's call against a documented
+alternative: the cost is that the app chooses on its own in the one situation
+where the choice does not follow from stated policy. Distributing in proportion
+to targets is the least opinionated way to do that, since it leaves the weight
+ratios where the policy already puts them.
+
+**Q5. Positions with no target — the state is forbidden, not handled.** Neither
+offered answer taken. Every holding must carry a target weight; the app enforces
+it rather than deciding what a missing one means. In the owner's words, having a
+defined weight for every position is a rule of investing, and the app should
+impose it.
+
+The honest cost, stated so nobody rediscovers it as a bug: adding a new company
+now requires opening the target editor and reducing others, because the sum must
+stay at 100%. That is the intended friction, not a side effect.
+
+**Q6. Targets not summing to 100% — likewise made unreachable.** The question
+offered "warn and scale" versus "refuse"; both handle a state that should not
+exist. The target editor shows a running sum and will not save below or above
+100%, so a rebalance never encounters broken policy. The one remaining route in
+is a hand-edited data file — chosen deliberately in #2 — and there the app
+refuses to produce a plan and sends the user to the editor. No silent
+normalisation, ever.
+
+**Q7. Minimum trade — 5% of the contribution, floor $10.** Replaces the
+recommended flat $50, whose stated justification was the cost of a cheap
+odd-lot order. #2 established that this broker charges no equity commission at
+the owner's turnover, and shares are fractional to 4 dp, so there is no cost
+floor to defend against. What survives is an ergonomic purpose: not handing the
+user a plan made of twenty trivial orders. A percentage is the only form that
+scales with what the algorithm actually produces — the table above shows
+fragmentation tracking the contribution ratio, not the dollar amount. Iterative
+removal and to-the-cent reporting of the unspent remainder stand as measured
+in §3.
+
+**New: the contribution has a currency.** Not raised by any of the seven
+questions. The owner contributes in złoty (1,000–2,000 PLN monthly) into a
+portfolio priced in dollars, so an unqualified "1500" is ambiguous by a factor
+of roughly four. The contribution amount therefore carries a currency, and a
+plan denominated in PLN needs a *current* rate to convert before allocating.
+This is a different call from the historical, frozen rates #2 settled and #9
+investigates: those are a permanent tax record, this one is a throwaway
+conversion at planning time. Flagged on #9 so a single ticket covers both.
