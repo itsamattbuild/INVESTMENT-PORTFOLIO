@@ -87,31 +87,52 @@ Measured with two real instances (reproduced by `bench/bench_port_collision.py`)
 
 | Store | Result |
 |---|---|
-| JSON, interleaved read-modify-write | **Silent data loss, every run**: A wrote 20 log entries, B wrote 20; the surviving count moved between runs — 37 of 40 in the original sandbox, **1–33 of 40 across ten re-runs here**. No error anywhere; the exact loss is scheduler luck, which is worse than any stable number would be |
+| JSON, interleaved read-modify-write | **Silent data loss, every run**: A wrote 20 log entries, B wrote 20; the surviving count moved between runs — 37 of 40 in the original overnight sandbox, 1–33 of 40 across ten re-runs on Linux, **30 of 40 on the target platform (Darwin arm64)** — 10 entries gone. No error anywhere; the exact loss is scheduler luck, which is worse than any stable number would be |
 | SQLite WAL, row-at-a-time writes, `busy_timeout=3000` | **Zero loss** (reproduced exactly: 20/20 + 20/20 rows), zero errors, `integrity_check=ok`; writers serialise cleanly |
 | SQLite, second writer while a write transaction is held | Fails honestly after its timeout: `sqlite3.OperationalError: database is locked`. Observed in the original runs; today's impatient-writer re-runs completed without overlapping writes, so no error fired — absence of contention, not absence of the error path |
 
-**Recommendation:** whatever storage #2 picks, add a single-instance guard to
-the launcher (pidfile or pre-bind check) — cheap insurance. If #2 chooses
-SQLite, enable WAL + `busy_timeout` from day one; if JSON, atomic temp-file
-renames (see the data-model pack) prevent torn files but *not* lost updates,
-which makes the single-instance guard mandatory rather than advisory.
+**Recommendation:** a single-instance guard (pidfile or pre-bind check in the
+launcher) is **mandatory if #2 settles on JSON**. The conclusion is unchanged,
+but the overnight numbers understated it: on the platform this app ships to,
+the review's re-run lost 10 of 40 recorded transactions — a quarter of the
+ledger, silently — where the sandbox had shown 3. Atomic temp-file renames
+(see the data-model pack) prevent torn files but *not* lost updates. If #2
+chooses SQLite, enable WAL + `busy_timeout` from day one and fit the guard
+anyway; belt-and-braces costs nothing next to a lost ledger.
 
 ## 4. The `.command` double-clickable launcher
 
-Written and exercised (`bench/launcher.command`). Verified here: env creation
-on first run, dependency install hook, server start + readiness wait, browser
-open, **already-running detection** (second launch prints "Server already
-running", skips start, exits 0), and the failure path (no venv support → clear
-actionable message, exit 1, no half-state left behind).
+Written and exercised (`bench/launcher.command`). Verified in the original
+pack: env creation hook, dependency install, server start + readiness wait,
+browser open, already-running detection, failure paths. Since then given its
+full pass on this session's host (Linux arm64 — real hardware, not the macOS
+target):
 
-macOS-specific behaviours marked `[macOS]` in the script were reasoned, not
-executed (this sandbox is Linux): Terminal.app runs the script on double-click;
-`open "$APP_URL"` launches the default browser; the stop instruction uses
-`lsof -ti :PORT`. One genuine macOS risk to verify on hardware: **Gatekeeper
-quarantine** — a `.command` downloaded or created by another tool may be
-blocked on first open ("cannot be opened because it is from an unidentified
-developer"); right-click → Open clears it once. Not verifiable tonight.
+- Server start + readiness wait: uvicorn serving, launcher exits 0, page
+  answers HTTP 200, `server.log` written next to the app.
+- Browser-open fallback chain: no `open` on this host → the `xdg-open` branch
+  ran and surfaced `http://127.0.0.1:8123` for the user's local browser. On
+  macOS the first branch (`open "$APP_URL"`) takes over.
+- Already-running detection: second launch prints "Server already running at …",
+  starts nothing, exits 0.
+- The printed stop line works verbatim: `kill $(lsof -ti :8123)` freed the port.
+- Failure path, app module missing: readiness wait times out → "ERROR: server
+  did not start. See server.log", exit 1.
+
+One correction the pass forced: a *failed* venv creation (this host's python3
+lacks ensurepip) prints the actionable error and exits 1 as designed, but
+leaves the partial `.venv/` behind — "no half-state left behind" was too
+strong. Harmless in practice (the next run recreates into it), but stated as
+measured.
+
+What the pass could not cover, stated just as plainly: **the Finder
+double-click**. This session runs on a Linux host — the repo folder merely
+lives on the Mac — so the Finder → Terminal.app hand-off, Gatekeeper quarantine
+on first open ("cannot be opened because it is from an unidentified
+developer"; right-click → Open clears it once), and `open "$APP_URL"` itself
+remain unexecuted. Everything the script does *after* the double-click is now
+verified; whether it works from Finder without a terminal stays open under the
+map's Distribution item until someone actually double-clicks it on the Mac.
 
 Failure modes covered by the script as written: missing python3 (message),
 failed venv creation (message + exit), failed pip install (message + exit),
