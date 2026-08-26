@@ -69,10 +69,12 @@ This map is done when nothing is left to **decide** — only to build.
 
 Open tickets live in `wayfinder/tickets/`. The frontier is every ticket that is open, unblocked, and unclaimed.
 
-| # | Ticket | Type | Status | Blocked by |
-|---|--------|------|--------|------------|
-| 0001 | [Price source for US equities](tickets/0001-price-source.md) | research | open | — |
-| 0002 | [Data model and on-disk format](tickets/0002-data-model.md) | grilling | open | 0001 |
-| 0003 | [Rebalancing algorithm](tickets/0003-rebalancing-algorithm.md) | grilling | open | — |
-| 0004 | [Visual direction and main screen layout](tickets/0004-visual-direction.md) | prototype | open | — |
-| 0005 | [Application lifecycle and launching](tickets/0005-app-lifecycle.md) | grilling | open | 0001 |
+Two agents are working this map in parallel. Each works on its own branch and only `claude` edits this file, so the table stays conflict-free.
+
+| # | Ticket | Type | Status | Blocked by | Claimed by |
+|---|--------|------|--------|------------|------------|
+| 0001 | [Price source for US equities](tickets/0001-price-source.md) | research | open | — | claude |
+| 0002 | [Data model and on-disk format](tickets/0002-data-model.md) | grilling | open | 0001 | — |
+| 0003 | [Rebalancing algorithm](tickets/0003-rebalancing-algorithm.md) | grilling | open | — | — |
+| 0004 | [Visual direction and main screen layout](tickets/0004-visual-direction.md) | prototype | open | — | 0x-alpha |
+| 0005 | [Application lifecycle and launching](tickets/0005-app-lifecycle.md) | grilling | open | 0001 | — |

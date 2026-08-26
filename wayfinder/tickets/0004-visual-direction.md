@@ -4,7 +4,7 @@ title: Visual direction and main screen layout
 labels: [wayfinder:prototype]
 parent: ../map.md
 status: open
-assignee: null
+assignee: 0x-alpha
 blocked_by: []
 ---
 

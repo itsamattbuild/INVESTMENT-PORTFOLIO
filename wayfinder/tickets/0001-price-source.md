@@ -4,7 +4,7 @@ title: Price source for US equities
 labels: [wayfinder:research]
 parent: ../map.md
 status: open
-assignee: null
+assignee: claude
 blocked_by: []
 ---
 
