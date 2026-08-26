@@ -4,7 +4,9 @@ Prepared for [issue #2](https://github.com/itsamattbuild/INVESTMENT-PORTFOLIO/is
 Nothing here decides anything — #2 is a grilling ticket and stays open. What this
 document does is replace three of #2's seven questions ("argue it out") with
 measured facts ("pick one of these two rows"), and attach recommendations to the
-remaining four.
+remaining four. One exception since the first publication: question 7's cost
+method is decided in §C2 — decided provisionally, on the statutory reading,
+with a dated verification step that closes it.
 
 **Test conditions.** Python 3.14.4, SQLite 3.46.1 (via `sqlite3` module), Linux
 container, 2026-08-26. The interrupted-write tests force `fsync` at every step
@@ -194,59 +196,73 @@ then sell 25 @ $220. Identical history, two methods:
 | Remaining basis | $5,833.33 / 35 sh | $6,750.00 / 35 sh |
 | Tax due at PLN 19% rate | differs by **$174.17** between the methods | |
 
-The divergence is large enough that this choice *is* a tax question.
+The divergence is large enough that this choice *is* a tax question — and it
+stopped being hypothetical: positions were already sold in 2026, so realised
+profit is non-zero today. Whatever the app displays as realised profit is an
+estimate of a tax liability actually due with the PIT-38 return by 30 April
+2027. This section was first published with that answer inverted; the
+correction below is part of the record, not a footnote to it.
 
-### C1. What Polish tax law requires
+### C1. What Polish tax law requires — corrected after verification
 
-**The answer is unambiguous in substance: Poland requires the weighted-average
-method for securities.** The chain:
+**The statutory answer is FIFO.** Art. 24 ust. 10 ustawy o PIT:
 
-1. **Rozporządzenie Ministra Finansów z dnia 15 grudnia 1995 r. w sprawie
-   sposobu prowadzenia podatkowej ewidencji sprzedaży walorów** (Dz.U. 1995 nr
-   60, poz. 313; consolidated text Dz.U. 2005 nr 19, poz. 160) — defines the
-   tax cost of disposed *walory* (securities) as their acquisition price
-   computed by **średnia ważona** (weighted average) over the holding period.
-   This is why every Polish broker's PIT-8C reports costs on the weighted-
-   average basis.
-2. **Ustawa o PIT** supplies the frame: acquisition outlay is the deductible
-   cost when determining income from disposal of shares/securities (art. 22),
-   foreign-currency transactions convert at the **NBP average rate from the
-   working day before the disposal (art. 11a)**, capital gains are taxed at 19%
-   on PIT-38. Framework verified against the Dz.U. 2000 nr 14 poz. 176
-   consolidated text (mirrored at legalize-dev/legalize-pl, `pl/DU-2000-176.md`,
-   line 971: acquisition expenditure is a cost "przy ustalaniu dochodu ze zbycia
-   tych... akcji oraz innych papierów wartościowych").
-3. **Where the FIFO confusion comes from:** crypto is FIFO under art. 30b
-   (costs consumed starting from the earliest purchases). Some brokers' own
-   statements use FIFO for their internal lot tracking (verified example:
-   Trading212's help centre describes FIFO for its statements — a broker
-   convention, *not* the Polish tax rule; contrast verified in OSS tool
-   KamilMatejuk/PIT-Trading212 which follows the broker's FIFO presentation).
+> „każdorazowo zbycie dotyczy kolejno papierów wartościowych nabytych
+> najwcześniej"
 
-**Verification status, stated plainly.** This sandbox's network allowlist
-blocked `isap.sejm.gov.pl`, `api.sejm.gov.pl`, `podatki.gov.pl` and all Polish
-tax-firm sites (403 "no matching allow rule"), so the regulation text itself
-could not be re-read tonight; citations above carry exact identifiers so the
-check is one lookup. Corroboration actually retrieved: the 2000 consolidated
-act text (primary source, older consolidation), an XTB PIT-38 consolidation
-tool's README documenting the art. 11a NBP D-1 practice, and PIT-8C behaviour
-of Polish brokers (weighted average) vs foreign brokers' statements (FIFO).
-**Recommendation: treat weighted average as a constraint, not a preference —
-and spend one minute verifying the rozporządzenie citation before v1 locks the
-spec.**
+— each disposal is matched, in order, against the securities acquired
+earliest. The qualification discussed around that provision — FIFO governs
+where it is not possible to identify which specific securities were sold —
+describes the ordinary case of a dematerialised brokerage account, not an
+exception to it. Independent secondary treatment reaches the same result by a
+second route (art. 30a ust. 3 applied through art. 30b ust. 3) and presents
+FIFO as the default, with no weighted-average alternative mentioned at all.
 
-### C2. Consequence for the app
+**How this section got the answer wrong the first time, stated plainly.** It
+claimed weighted average was required, citing a rozporządzenie (Dz.U. 1995 nr
+60 poz. 313) whose text had not been read — the sandbox blocked Polish legal
+sites, and the caveat said so. When the check was finally run via the Sejm ELI
+API, the citation resolved to *import tariff quotas on potato, maize and wheat
+starch*, issued May 1995, repealed three months later: nothing to do with
+securities, no support for either method. The MF's own PIT-38 brochure proved
+silent on multi-lot cost attribution entirely — supporting neither side. What
+survives from the first version is only the frame: acquisition outlay as
+deductible cost, art. 11a NBP D-1 conversion for foreign currency, 19% on
+PIT-38. Lesson recorded for every pack in this repo: **a citation that was
+never read is not a citation**, whatever caveat travels with it.
 
-Store transactions (the model already does) and **both** methods remain
-computable forever, because lots are never destroyed. Compute realised P/L by
-weighted average (matches the tax return the user must file); keep the door
-open for a FIFO view without schema change. This collapses most of #2's
-question 7 into settled ground.
+### C2. Decision: implement FIFO now; question 7 closes on the PIT-8C
+
+1. **Realised profit is computed FIFO.** Each sale consumes open lots
+   earliest-acquired first, ordered by the same `(date, id)` rule that orders
+   the fold (Q7). Open-position cost basis is what FIFO leaves behind;
+   unrealised P/L is unaffected by the choice.
+2. **Why deciding now under uncertainty is low-risk.** Transactions are
+   stored; positions are derived. Switching methods later recomputes the whole
+   history from the same ledger — there is no migration, no dual bookkeeping,
+   nothing to unwind. A method chosen on the best available reading tonight is
+   therefore cheap to reverse, which is exactly why it should be made rather
+   than deferred while real sales accumulate.
+3. **Closing step for #2's question 7 — end of February 2027.** XTB issues
+   its PIT-8C for tax year 2026 by the end of February 2027. When it arrives,
+   take one sale and compare the document's cost basis and profit against the
+   app's FIFO figure. Agreement settles the method with the authority of the
+   document actually filed; disagreement reopens the question with the PIT-8C
+   as ground truth.
+
+What deliberately stays unknown until that document arrives: whether XTB's
+PIT-8C presents costs FIFO, weighted-average or otherwise. No claim is made
+here in either direction — settling it by argument is what produced §C1's
+first version. Until February 2027 the statutory reading governs, and the app
+says so: the realised-profit figure is labelled an estimate pending the
+broker's own document.
 
 Splits under either method: a 10:1 split turns 100 sh @ avg $50.00 into
 1,000 sh @ avg $5.00 — share count divides, per-share price divides, value and
 total basis invariant (worked through in `bench/`). Undo of a mistaken split =
 enter the inverse ratio as a new transaction; nothing is ever edited in place.
+Under FIFO a split rewrites every open lot's per-share price and leaves lot
+order untouched, so it slots into the method without special cases.
 
 ---
 
@@ -288,11 +304,14 @@ with appending history.
 (the whole dataset loads in <1 ms — splitting buys nothing). **Recommendation:**
 accept.
 
-**Q7. Position derivation** — fold ordered by `(date, id)`; weighted average
-cost; sales realise P/L against current average cost; splits adjust count and
-basis-per-share only. Method question settled by §C: weighted average for
-display/tax, FIFO computable later. Ordering tie-break matters: same-date
-transactions replay in entry order. **Recommendation:** accept.
+**Q7. Position derivation** — fold ordered by `(date, id)` (entry order breaks
+same-day ties); realised profit by FIFO per §C2 — each sale consumes open lots
+earliest-first under the same ordering; open positions carry the basis FIFO
+leaves behind, from which average cost derives; splits adjust count and
+basis-per-share only, preserving lot order. Method question decided on the
+statutory reading (art. 24 ust. 10 PIT), with its closing step dated: the
+PIT-8C cross-check when XTB's document for tax year 2026 arrives, end of
+February 2027. **Recommendation:** accept.
 
 ---
 
