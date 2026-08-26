@@ -47,13 +47,21 @@ def main():
 
     code = SERVER % {"host": HOST, "port": port}
     first = subprocess.Popen([sys.executable, "-c", code],
-                             stderr=subprocess.PIPE, text=True)
+                             stderr=subprocess.DEVNULL)
+    try:
+        run(port, second_code=code)
+    finally:
+        first.terminate()
+        first.wait(timeout=10)
+
+
+def run(port, second_code):
     ready = wait_ready(port)
     print(f"first instance: serving after {ready:.3f}s" if ready else
           "first instance: NEVER became ready")
     assert ready, "first instance failed to start"
 
-    second = subprocess.Popen([sys.executable, "-c", code],
+    second = subprocess.Popen([sys.executable, "-c", second_code],
                               stderr=subprocess.PIPE, text=True)
     t0 = time.perf_counter()
     _, err = second.communicate(timeout=30)
